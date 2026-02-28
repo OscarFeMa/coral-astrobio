@@ -40,6 +40,16 @@ from core.causal_analyzer import (
 
 app = Flask(__name__)
 
+import numpy as np
+class NumpyJSON(app.json_provider_class):
+    def default(self, o):
+        if isinstance(o, (np.bool_,)): return bool(o)
+        if isinstance(o, np.integer): return int(o)
+        if isinstance(o, np.floating): return float(o)
+        if isinstance(o, np.ndarray): return o.tolist()
+        return super().default(o)
+app.json_provider_class = NumpyJSON
+app.json = NumpyJSON(app)
 # ---- HELPERS ----
 
 def planet_full_analysis(planet, custom_evidences=None):
