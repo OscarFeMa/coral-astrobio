@@ -468,3 +468,8 @@ def export_pdf(name):
         as_attachment=True,
         download_name=f"astrobio_{safe}.pdf",
     )
+
+@app.route("/api/debug/routes")
+def debug_routes():
+    routes = [str(r) for r in app.url_map.iter_rules()]
+    return jsonify({"routes": routes, "count": len(routes)})
