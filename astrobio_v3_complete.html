@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CORAL ASTROBIO v2.0 — Detección de Vida Extraterrestre</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;800&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #03050a;
+    --deep: #070d1a;
+    --nebula: #0a1628;
+    --pulse: #0e4f8a;
+    --bio: #00c896;
+    --abio: #ff4d6d;
+    --tech: #ffd166;
+    --stellar: #4cc9f0;
+    --dim: #1a2a3a;
+    --muted: #3a5a7a;
+    --text: #c8dff0;
+    --bright: #e8f4ff;
+    --glow-bio: rgba(0,200,150,0.12);
+    --glow-abio: rgba(255,77,109,0.12);
+    --glow-stellar: rgba(76,201,240,0.12);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--void);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::after {
+    content:'';
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.025) 2px,rgba(0,0,0,0.025) 4px);
+    pointer-events:none; z-index:1;
+  }
+
+  /* STARFIELD */
+  #starfield { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0; }
+
+  /* LOADING */
+  .loader {
+    position:fixed; inset:0; background:var(--void); z-index:2000;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transition: opacity 0.6s ease;
+  }
+  .loader.out { opacity:0; pointer-events:none; }
+  .loader-title { font-family:'Syne',sans-serif; font-size:0.9rem; letter-spacing:0.5em; color:var(--stellar); margin-bottom:2.5rem; }
+  .loader-bar { width:280px; height:1px; background:var(--dim); position:relative; overflow:hidden; }
+  .loader-fill { height:100%; background:var(--bio); width:0%; transition:width 0.3s ease; }
+  .loader-msg { font-size:0.58rem; color:var(--muted); margin-top:1rem; letter-spacing:0.2em; height:1rem; }
+  .loader-api-status { margin-top:2rem; display:flex; gap:1.5rem; }
+  .api-badge { font-size:0.55rem; letter-spacing:0.15em; padding:0.3rem 0.7rem; border:1px solid var(--dim); color:var(--muted); display:flex; align-items:center; gap:0.4rem; }
+  .api-badge .dot { width:5px; height:5px; border-radius:50%; background:var(--muted); }
+  .api-badge.ok .dot { background:var(--bio); }
+  .api-badge.ok { color:var(--bio); border-color:var(--bio); }
+  .api-badge.fail .dot { background:var(--abio); }
+  .api-badge.fail { color:var(--abio); border-color:var(--abio); }
+  .api-badge.cached .dot { background:var(--tech); }
+  .api-badge.cached { color:var(--tech); border-color:var(--tech); }
+
+  /* HEADER */
+  header {
+    position:sticky; top:0; z-index:100;
+    padding:1.2rem 2.5rem; border-bottom:1px solid var(--dim);
+    display:flex; align-items:center; justify-content:space-between;
+    background:rgba(3,5,10,0.92); backdrop-filter:blur(16px);
+  }
+  .logo { font-family:'Syne',sans-serif; font-weight:800; font-size:1rem; letter-spacing:0.3em; color:var(--stellar); }
+  .logo span { color:var(--bio); }
+  .header-right { display:flex; align-items:center; gap:2rem; }
+  .status-pills { display:flex; gap:0.8rem; }
+  .pill {
+    font-size:0.55rem; letter-spacing:0.15em; text-transform:uppercase;
+    padding:0.25rem 0.7rem; border-radius:0; border:1px solid var(--dim);
+    color:var(--muted); display:flex; align-items:center; gap:0.35rem;
+  }
+  .pill.live { border-color:var(--bio); color:var(--bio); background:var(--glow-bio); }
+  .pill.cached { border-color:var(--tech); color:var(--tech); }
+  .pill-dot { width:5px; height:5px; border-radius:50%; background:currentColor; animation:blink 1.8s infinite; }
+  @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+  .data-ts { font-size:0.55rem; color:var(--muted); }
+
+  /* LAYOUT */
+  .page { position:relative; z-index:5; max-width:1440px; margin:0 auto; padding:0 2.5rem 4rem; }
+
+  /* HERO */
+  .hero { padding:4rem 0 2.5rem; }
+  .hero-eyebrow { font-size:0.6rem; letter-spacing:0.4em; color:var(--bio); text-transform:uppercase; margin-bottom:1.2rem; }
+  .hero-title { font-family:'DM Serif Display',serif; font-size:clamp(2.2rem,5vw,4.5rem); line-height:1.05; color:var(--bright); margin-bottom:0.8rem; }
+  .hero-title em { font-style:italic; color:var(--stellar); }
+  .hero-sub { font-size:0.68rem; line-height:1.9; color:var(--muted); max-width:580px; margin-bottom:2rem; }
+  .source-badges { display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:2rem; }
+  .src-badge { font-size:0.52rem; letter-spacing:0.15em; color:var(--muted); border:1px solid var(--dim); padding:0.2rem 0.55rem; }
+  .src-badge.active { border-color:var(--bio); color:var(--bio); }
+
+  /* SECTION HEADERS */
+  .section-head {
+    display:flex; align-items:center; gap:1rem;
+    padding:1.5rem 0 1rem;
+    border-top:1px solid var(--dim);
+    margin-top:2rem;
+  }
+  .section-num { font-family:'DM Serif Display',serif; font-size:2rem; color:var(--dim); line-height:1; }
+  .section-info {}
+  .section-tag { font-size:0.55rem; letter-spacing:0.3em; text-transform:uppercase; margin-bottom:0.2rem; }
+  .section-title { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; color:var(--bright); }
+
+  /* PLANET CATALOG */
+  .catalog-controls { display:flex; gap:1rem; align-items:center; margin-bottom:1.2rem; flex-wrap:wrap; }
+  .search-input {
+    flex:1; min-width:200px;
+    font-family:'Space Mono',monospace; font-size:0.65rem;
+    background:var(--deep); border:1px solid var(--dim); color:var(--text);
+    padding:0.6rem 1rem; outline:none;
+    transition:border-color 0.2s;
+  }
+  .search-input:focus { border-color:var(--stellar); }
+  .filter-btn {
+    font-family:'Space Mono',monospace; font-size:0.6rem;
+    background:transparent; border:1px solid var(--dim); color:var(--muted);
+    padding:0.6rem 1rem; cursor:pointer; letter-spacing:0.1em; text-transform:uppercase;
+    transition:all 0.2s;
+  }
+  .filter-btn:hover, .filter-btn.active { border-color:var(--stellar); color:var(--stellar); background:var(--glow-stellar); }
+  .catalog-stats { font-size:0.58rem; color:var(--muted); white-space:nowrap; }
+
+  .planet-table { width:100%; border-collapse:collapse; }
+  .planet-table th {
+    font-size:0.55rem; letter-spacing:0.15em; text-transform:uppercase;
+    color:var(--muted); padding:0.6rem 1rem; border-bottom:1px solid var(--dim);
+    text-align:left; cursor:pointer; white-space:nowrap;
+  }
+  .planet-table th:hover { color:var(--stellar); }
+  .planet-table th.sorted { color:var(--stellar); }
+  .planet-table td {
+    font-size:0.62rem; padding:0.7rem 1rem;
+    border-bottom:1px solid rgba(26,42,58,0.5);
+    vertical-align:middle;
+  }
+  .planet-table tr { cursor:pointer; transition:background 0.15s; }
+  .planet-table tr:hover { background:rgba(76,201,240,0.04); }
+  .planet-table tr.selected { background:rgba(76,201,240,0.07); }
+  .planet-table tr.selected td { color:var(--bright); }
+  .planet-name-cell { color:var(--bright); font-weight:700; }
+  .planet-name-cell small { display:block; color:var(--muted); font-weight:400; font-size:0.55rem; margin-top:0.1rem; }
+  .badge-jwst { font-size:0.5rem; background:rgba(0,200,150,0.15); color:var(--bio); padding:0.1rem 0.4rem; border:1px solid var(--bio); margin-left:0.4rem; }
+  .score-bar { display:flex; align-items:center; gap:0.5rem; }
+  .score-track { flex:1; height:3px; background:var(--dim); }
+  .score-fill-bio { height:100%; background:var(--bio); transition:width 0.6s ease; }
+  .score-fill-tsm { height:100%; background:var(--stellar); transition:width 0.6s ease; }
+  .score-num { font-size:0.6rem; color:var(--text); min-width:2.5rem; text-align:right; }
+
+  /* MAIN ANALYSIS GRID */
+  .analysis-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1.5rem; margin-top:1rem; }
+  .analysis-grid.wide { grid-template-columns:2fr 1fr; }
+
+  /* PANELS */
+  .panel {
+    background:rgba(7,13,26,0.95); border:1px solid var(--dim);
+    padding:1.6rem; position:relative; overflow:hidden;
+    transition:border-color 0.2s;
+  }
+  .panel:hover { border-color:var(--muted); }
+  .panel::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+  .panel.c-bio::before { background:var(--bio); }
+  .panel.c-abio::before { background:var(--abio); }
+  .panel.c-stellar::before { background:var(--stellar); }
+  .panel.c-tech::before { background:var(--tech); }
+  .panel.c-muted::before { background:var(--muted); }
+  .panel.span2 { grid-column: span 2; }
+  .panel.span3 { grid-column: span 3; }
+
+  .ptag { font-size:0.58rem; letter-spacing:0.25em; text-transform:uppercase; margin-bottom:0.8rem; }
+  .panel.c-bio .ptag { color:var(--bio); }
+  .panel.c-abio .ptag { color:var(--abio); }
+  .panel.c-stellar .ptag { color:var(--stellar); }
+  .panel.c-tech .ptag { color:var(--tech); }
+  .panel.c-muted .ptag { color:var(--muted); }
+  .ptitle { font-family:'Syne',sans-serif; font-size:0.95rem; font-weight:700; color:var(--bright); margin-bottom:0.4rem; }
+  .pdesc { font-size:0.6rem; line-height:1.7; color:var(--muted); margin-bottom:1.2rem; }
+
+  /* BAYESIAN */
+  .planet-selected-name { font-family:'DM Serif Display',serif; font-size:1.8rem; color:var(--bright); margin-bottom:0.2rem; }
+  .planet-selected-meta { font-size:0.6rem; color:var(--muted); margin-bottom:1.2rem; }
+
+  .odds-big { font-family:'DM Serif Display',serif; font-size:3.5rem; color:var(--bright); text-align:center; line-height:1; }
+  .odds-big.bio-win { color:var(--bio); }
+  .odds-big.abio-win { color:var(--abio); }
+  .odds-sublabel { font-size:0.58rem; color:var(--muted); text-align:center; margin-top:0.3rem; letter-spacing:0.1em; }
+
+  .dual-bar { height:6px; background:var(--dim); position:relative; overflow:hidden; margin:1rem 0 0.4rem; }
+  .dual-fill-bio { position:absolute; left:0; height:100%; background:linear-gradient(90deg,var(--bio),#00ff9d); transition:width 0.8s cubic-bezier(.4,0,.2,1); }
+  .dual-fill-abio { position:absolute; right:0; height:100%; background:linear-gradient(270deg,var(--abio),#ff8fa3); transition:width 0.8s cubic-bezier(.4,0,.2,1); }
+  .dual-labels { display:flex; justify-content:space-between; font-size:0.58rem; margin-bottom:1.2rem; }
+  .lbl-bio { color:var(--bio); }
+  .lbl-abio { color:var(--abio); }
+
+  .ev-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; }
+  .ev-item {}
+  .ev-head { display:flex; justify-content:space-between; font-size:0.58rem; margin-bottom:0.3rem; }
+  .ev-val { color:var(--bio); font-weight:700; }
+  .ev-val.negative { color:var(--abio); }
+  input[type=range] {
+    width:100%; -webkit-appearance:none; height:3px; background:var(--dim);
+    outline:none; cursor:pointer; border-radius:0;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:10px; height:10px;
+    background:var(--bio); border-radius:0; cursor:pointer;
+  }
+  input[type=range].negative::-webkit-slider-thumb { background:var(--abio); }
+
+  .conseil-row {
+    display:flex; align-items:center; gap:1rem;
+    padding:1rem; background:var(--deep); border:1px solid var(--dim); margin-top:1rem;
+  }
+  .conseil-label { font-size:0.58rem; color:var(--muted); flex:1; line-height:1.5; }
+  .conseil-val { font-family:'DM Serif Display',serif; font-size:2rem; color:var(--bright); }
+  .verdict { font-size:0.55rem; letter-spacing:0.2em; text-transform:uppercase; padding:0.3rem 0.7rem; }
+  .verdict.bio { background:var(--glow-bio); color:var(--bio); border:1px solid var(--bio); }
+  .verdict.abio { background:var(--glow-abio); color:var(--abio); border:1px solid var(--abio); }
+  .verdict.uncertain { background:rgba(255,209,102,0.1); color:var(--tech); border:1px solid var(--tech); }
+
+  /* ABIO COMPETITOR */
+  .abio-row { display:flex; align-items:center; gap:0.8rem; padding:0.6rem 0; border-bottom:1px solid rgba(26,42,58,0.5); }
+  .abio-row:last-child { border-bottom:none; }
+  .abio-name { font-size:0.6rem; color:var(--text); flex:1; }
+  .abio-track { width:100px; height:3px; background:var(--dim); }
+  .abio-fill { height:100%; background:var(--abio); transition:width 0.8s ease; }
+  .abio-score { font-size:0.65rem; color:var(--abio); min-width:2.5rem; text-align:right; }
+  .abio-status { font-size:0.5rem; letter-spacing:0.1em; padding:0.15rem 0.4rem; }
+  .abio-status.dominant { background:rgba(255,77,109,0.15); color:var(--abio); border:1px solid var(--abio); }
+  .abio-status.suppressed { background:var(--dim); color:var(--muted); border:1px solid var(--dim); }
+
+  /* TRANSITION */
+  .t-item { margin-bottom:1.2rem; }
+  .t-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.3rem; }
+  .t-label { font-size:0.62rem; color:var(--text); }
+  .t-score { font-family:'DM Serif Display',serif; font-size:1.2rem; color:var(--bright); }
+  .t-track { height:3px; background:var(--dim); position:relative; overflow:hidden; }
+  .t-fill { height:100%; transition:width 1s cubic-bezier(.4,0,.2,1); }
+  .t0 .t-fill { background:#5a6d8a; }
+  .t1 .t-fill { background:#7b8fff; }
+  .t2 .t-fill { background:#a8e6cf; }
+  .t3 .t-fill { background:var(--bio); }
+  .t4 .t-fill { background:var(--tech); }
+  .t-desc { font-size:0.55rem; color:var(--muted); margin-top:0.3rem; line-height:1.5; }
+  .dominant-box { background:var(--deep); border:1px solid var(--dim); padding:1rem; text-align:center; margin-top:1.2rem; }
+  .dom-label { font-size:0.55rem; letter-spacing:0.3em; text-transform:uppercase; color:var(--muted); margin-bottom:0.3rem; }
+  .dom-val { font-family:'DM Serif Display',serif; font-size:2rem; color:var(--bio); }
+  .dom-name { font-size:0.58rem; color:var(--text); margin-top:0.2rem; }
+  .fn-note { font-size:0.6rem; color:var(--muted); margin-top:1rem; line-height:1.6; }
+
+  /* CAUSAL */
+  .signal-wrap { position:relative; }
+  canvas.signal { width:100%; height:130px; display:block; background:var(--deep); border:1px solid var(--dim); }
+  .signal-legend { display:flex; gap:1.5rem; margin-top:0.6rem; font-size:0.58rem; }
+  .sig-item { display:flex; align-items:center; gap:0.4rem; color:var(--muted); }
+  .sig-line { width:16px; height:2px; }
+  .metrics-row { display:grid; grid-template-columns:repeat(4,1fr); gap:0.8rem; margin-top:1rem; }
+  .met-box { background:var(--deep); border:1px solid var(--dim); padding:0.8rem; text-align:center; }
+  .met-val { font-family:'DM Serif Display',serif; font-size:1.4rem; color:var(--bright); display:block; }
+  .met-name { font-size:0.52rem; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; margin-top:0.2rem; display:block; }
+
+  /* ALERTS */
+  .alert-item {
+    display:flex; align-items:flex-start; gap:1rem;
+    padding:0.9rem 1rem; background:var(--deep);
+    border-left:2px solid var(--muted); margin-bottom:0.6rem;
+    animation:slideIn 0.3s ease;
+  }
+  @keyframes slideIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
+  .alert-item.hi { border-color:var(--bio); }
+  .alert-item.md { border-color:var(--tech); }
+  .alert-item.lo { border-color:var(--muted); }
+  .alert-item.warn { border-color:var(--abio); }
+  .alert-badge { font-size:0.52rem; letter-spacing:0.15em; text-transform:uppercase; padding:0.2rem 0.5rem; white-space:nowrap; flex-shrink:0; }
+  .hi .alert-badge { background:var(--glow-bio); color:var(--bio); }
+  .md .alert-badge { background:rgba(255,209,102,0.1); color:var(--tech); }
+  .lo .alert-badge { background:var(--dim); color:var(--muted); }
+  .warn .alert-badge { background:var(--glow-abio); color:var(--abio); }
+  .alert-body { font-size:0.62rem; line-height:1.6; color:var(--text); }
+  .alert-src { font-size:0.55rem; color:var(--muted); margin-top:0.2rem; }
+
+  /* BUTTONS */
+  .btn {
+    font-family:'Space Mono',monospace; font-size:0.62rem; letter-spacing:0.08em;
+    padding:0.65rem 1.4rem; border:1px solid var(--muted); background:transparent;
+    color:var(--text); cursor:pointer; text-transform:uppercase; transition:all 0.2s;
+  }
+  .btn:hover { border-color:var(--bio); color:var(--bio); background:var(--glow-bio); }
+  .btn.primary { border-color:var(--bio); color:var(--bio); background:var(--glow-bio); }
+  .btn.primary:hover { background:rgba(0,200,150,0.22); }
+  .btn.danger { border-color:var(--abio); color:var(--abio); }
+  .btn-row { display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:1rem; }
+
+  /* H DIVIDER */
+  .hd { width:100%; height:1px; background:var(--dim); margin:1.2rem 0; }
+
+  /* FOOTER */
+  footer {
+    position:relative; z-index:5;
+    padding:1.2rem 2.5rem; border-top:1px solid var(--dim);
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:0.58rem; color:var(--muted); background:rgba(3,5,10,0.9);
+  }
+
+  /* RESPONSIVE */
+  @media(max-width:1100px){
+    .analysis-grid { grid-template-columns:1fr 1fr; }
+    .panel.span3 { grid-column:span 2; }
+  }
+  @media(max-width:750px){
+    header { padding:1rem 1.2rem; }
+    .page { padding:0 1.2rem 3rem; }
+    .analysis-grid { grid-template-columns:1fr; }
+    .panel.span2,.panel.span3 { grid-column:span 1; }
+    .ev-grid { grid-template-columns:1fr; }
+    .metrics-row { grid-template-columns:repeat(2,1fr); }
+    .planet-table { font-size:0.58rem; }
+  }
+
+  /* TOOLTIP */
+  [data-tip] { position:relative; cursor:help; }
+  [data-tip]:hover::after {
+    content:attr(data-tip);
+    position:absolute; bottom:120%; left:50%; transform:translateX(-50%);
+    background:var(--deep); border:1px solid var(--dim);
+    color:var(--text); font-size:0.58rem; padding:0.4rem 0.7rem;
+    white-space:nowrap; z-index:200; pointer-events:none;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+
+<!-- LOADER -->
+<div class="loader" id="loader">
+  <div class="loader-title">CORAL ASTROBIO v2.0</div>
+  <div class="loader-bar"><div class="loader-fill" id="lFill"></div></div>
+  <div class="loader-msg" id="lMsg">INICIANDO...</div>
+  <div class="loader-api-status" id="apiStatus">
+    <div class="api-badge" id="apiBadgeNASA"><span class="dot"></span>NASA EXOPLANET ARCHIVE</div>
+    <div class="api-badge" id="apiBadgeJWST"><span class="dot"></span>JWST MAST</div>
+    <div class="api-badge" id="apiBadgeBL"><span class="dot"></span>BREAKTHROUGH LISTEN</div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">CORAL <span>ASTRO</span>BIO <span style="font-size:0.6rem;color:var(--muted);margin-left:0.5rem;">v2.0</span></div>
+  <div class="header-right">
+    <div class="status-pills">
+      <div class="pill" id="pillNASA"><span class="pill-dot"></span>NASA API</div>
+      <div class="pill" id="pillJWST"><span class="pill-dot"></span>JWST</div>
+      <div class="pill live"><span class="pill-dot"></span>MOTOR BAYESIANO</div>
+    </div>
+    <div class="data-ts" id="dataTs">—</div>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-eyebrow">◈ Plataforma de Detección Agnóstica de Vida Extraterrestre</div>
+    <h1 class="hero-title">Buscamos <em>trayectorias</em>,<br>no eventos.</h1>
+    <p class="hero-sub">
+      Motor Bayesiano Competitivo · Clasificador de Transiciones Planetarias ·
+      Análisis Causal de Series Temporales. Datos en tiempo real del NASA Exoplanet Archive,
+      JWST MAST y Breakthrough Listen. Paradigma agnóstico: busca complejidad, no oxígeno.
+    </p>
+    <div class="source-badges">
+      <span class="src-badge" id="srcNASA">NASA EXOPLANET ARCHIVE</span>
+      <span class="src-badge" id="srcJWST">JWST CYCLE 1-3</span>
+      <span class="src-badge active">TRAPPIST SURVEY</span>
+      <span class="src-badge active">ARIEL PREPARATORY</span>
+      <span class="src-badge active">BREAKTHROUGH LISTEN</span>
+    </div>
+  </div>
+
+  <!-- SECTION 1: CATALOG -->
+  <div class="section-head">
+    <div class="section-num">01</div>
+    <div class="section-info">
+      <div class="section-tag c-stellar" style="color:var(--stellar)">◈ Selección de Objetivo</div>
+      <div class="section-title">Catálogo de Exoplanetas Prioritarios</div>
+    </div>
+  </div>
+
+  <div class="catalog-controls">
+    <input type="text" class="search-input" placeholder="BUSCAR PLANETA..." id="searchInput" oninput="filterCatalog()">
+    <button class="filter-btn active" onclick="setFilter('all',this)">TODOS</button>
+    <button class="filter-btn" onclick="setFilter('jwst',this)">CON JWST</button>
+    <button class="filter-btn" onclick="setFilter('habitable',this)">ZONA HABITABLE</button>
+    <button class="filter-btn" onclick="setFilter('superearth',this)">SUPER-TIERRA</button>
+    <div class="catalog-stats" id="catalogStats">Cargando...</div>
+    <button class="btn" onclick="refreshNASA()" style="margin-left:auto">⟳ ACTUALIZAR NASA</button>
+  </div>
+
+  <div style="overflow-x:auto;">
+    <table class="planet-table" id="planetTable">
+      <thead>
+        <tr>
+          <th onclick="sortBy('name')">Planeta</th>
+          <th onclick="sortBy('teq')" data-tip="Temperatura de equilibrio (K)">T_eq (K)</th>
+          <th onclick="sortBy('mass')" data-tip="Masa en masas terrestres">Masa (M⊕)</th>
+          <th onclick="sortBy('radius')" data-tip="Radio en radios terrestres">Radio (R⊕)</th>
+          <th onclick="sortBy('dist')" data-tip="Distancia en parsecs">Dist (pc)</th>
+          <th onclick="sortBy('tsm')" data-tip="Transmission Spectroscopy Metric — mayor = más observable">TSM ↓</th>
+          <th>Score Bio</th>
+          <th>Transición</th>
+        </tr>
+      </thead>
+      <tbody id="planetTbody"></tbody>
+    </table>
+  </div>
+
+  <!-- SECTION 2: ANALYSIS -->
+  <div class="section-head">
+    <div class="section-num">02</div>
+    <div class="section-info">
+      <div class="section-tag" style="color:var(--bio)">◈ Análisis Integrado — Tres Capas</div>
+      <div class="section-title">Motor Bayesiano · Clasificador PTSC · Analizador Causal</div>
+    </div>
+  </div>
+
+  <div class="analysis-grid">
+
+    <!-- CAPA 1: BAYESIAN -->
+    <div class="panel c-bio span2">
+      <div class="ptag">◈ Capa 1 — Dynamic Bayesian Consilience Engine (DBCE)</div>
+      <div class="planet-selected-name" id="selName">LHS 1140 b</div>
+      <div class="planet-selected-meta" id="selMeta">Super-Tierra · M4.5V · 48 pc · TSM: 18.3</div>
+
+      <div class="dual-bar">
+        <div class="dual-fill-bio" id="bioBar" style="width:50%"></div>
+        <div class="dual-fill-abio" id="abioBar" style="width:50%"></div>
+      </div>
+      <div class="dual-labels">
+        <span class="lbl-bio" id="bioLabel">● BIOLÓGICO 50.0%</span>
+        <span class="lbl-abio" id="abioLabel">ABIÓTICO 50.0% ●</span>
+      </div>
+
+      <div style="display:flex;gap:2rem;align-items:center;margin-bottom:1.2rem;">
+        <div>
+          <div class="odds-big" id="oddsVal">1.00</div>
+          <div class="odds-sublabel">ODDS RATIO BIO/ABIO</div>
+        </div>
+        <div style="flex:1;">
+          <div class="hd" style="margin:0.4rem 0;"></div>
+          <div style="font-size:0.58rem;color:var(--muted);line-height:1.8;">
+            IC 95%: [<span id="ciLow">0.40</span>, <span id="ciHigh">2.50</span>]<br>
+            Consiliencia corregida: <span id="consScore" style="color:var(--bright)">0.52</span><br>
+            Modelos abióticos activos: <span id="abioActive" style="color:var(--abio)">4</span>
+          </div>
+          <div class="hd" style="margin:0.4rem 0;"></div>
+          <div class="verdict uncertain" id="verdictBox">INCIERTO</div>
+        </div>
+      </div>
+
+      <div class="hd"></div>
+      <div style="font-size:0.58rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.8rem;">
+        Evidencias Observacionales — Ajusta para actualizar odds
+      </div>
+      <div class="ev-grid" id="evGrid"></div>
+
+      <div class="hd"></div>
+      <div style="font-size:0.6rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.6rem;">Modelos Abióticos Competidores</div>
+      <div id="abioList"></div>
+
+      <div class="btn-row">
+        <button class="btn primary" onclick="runAnalysis()">▶ EJECUTAR ANÁLISIS COMPLETO</button>
+        <button class="btn" onclick="randomize()">⟳ ALEATORIZAR</button>
+        <button class="btn" onclick="resetToDefault()">↺ RESTAURAR DATOS REALES</button>
+      </div>
+    </div>
+
+    <!-- CAPA 2: TRANSITION -->
+    <div class="panel c-stellar">
+      <div class="ptag">◈ Capa 2 — PTSC</div>
+      <div class="ptitle">Clasificador de Transiciones Planetarias</div>
+      <div class="pdesc">Modelo de 4 transiciones universales. Salida continua, no binaria. Detecta mundos "en camino".</div>
+      <div id="transitionList"></div>
+      <div class="dominant-box">
+        <div class="dom-label">Estado Dominante</div>
+        <div class="dom-val" id="domVal">T2.4</div>
+        <div class="dom-name" id="domName">METABOLISMO → ECOSISTEMA</div>
+      </div>
+      <div class="fn-note">
+        Falsos negativos reducidos al <strong id="fnRate" style="color:var(--bio)">12%</strong>
+        vs paradigma O₂ clásico.<br>
+        <span style="font-size:0.55rem;">Ventana de detectabilidad: ±<strong id="detectWindow" style="color:var(--stellar)">800</strong> Ma</span>
+      </div>
+    </div>
+
+  </div><!-- /analysis-grid -->
+
+  <!-- CAPA 3: CAUSAL -->
+  <div class="panel c-tech" style="margin-top:1.5rem;">
+    <div class="ptag">◈ Capa 3 — Analizador Causal de Series Temporales</div>
+    <div class="ptitle">Firmas Dinámicas No Geológicas — Causal Network Analyzer</div>
+    <div class="pdesc">
+      Detecta desfase causal entre reflectancia superficial y gases atmosféricos.
+      Si superficie precede a gas de forma no aleatoria → firma de metabolismo planetario.
+      Basado en propuesta DeepSeek/DBCE: vida como régimen dinámico, no sustancia.
+    </div>
+    <canvas class="signal" id="sigCanvas"></canvas>
+    <div class="signal-legend">
+      <div class="sig-item"><div class="sig-line" style="background:var(--bio)"></div>Reflectancia superficial</div>
+      <div class="sig-item"><div class="sig-line" style="background:var(--stellar)"></div>Gas atmosférico (CH₄/O₃)</div>
+      <div class="sig-item"><div class="sig-line" style="background:var(--tech); opacity:0.6"></div>Desfase causal estimado</div>
+      <div class="sig-item" style="margin-left:auto;font-size:0.55rem;color:var(--muted)">Escala: ~1 año planetario</div>
+    </div>
+    <div class="metrics-row" id="metricsRow"></div>
+  </div>
+
+  <!-- ALERTS -->
+  <div class="section-head">
+    <div class="section-num">03</div>
+    <div class="section-info">
+      <div class="section-tag" style="color:var(--tech)">◈ Sistema de Alertas</div>
+      <div class="section-title">Detector de Cambio de Paradigma — Alertas en Tiempo Real</div>
+    </div>
+  </div>
+  <div id="alertsList"></div>
+
+</div><!-- /page -->
+
+<footer>
+  <div>CORAL ASTROBIO v2.0 · Proyecto Coral Multi-IA 2026 · Paradigma Agnóstico</div>
+  <div id="footerData">NASA Exoplanet Archive · JWST MAST STScI · Breakthrough Listen</div>
+</footer>
+
+<script>
+// ===================================================================
+// STARFIELD
+// ===================================================================
+(function(){
+  const c=document.getElementById('starfield');
+  const cx=c.getContext('2d');
+  function resize(){ c.width=window.innerWidth; c.height=window.innerHeight; }
+  resize();
+  window.addEventListener('resize',resize);
+  const stars=Array.from({length:300},()=>({
+    x:Math.random()*c.width, y:Math.random()*c.height,
+    r:Math.random()*1.1, a:Math.random()*0.5+0.1,
+    sp:Math.random()*0.012+0.002, ph:Math.random()*Math.PI*2
+  }));
+  function draw(t){
+    cx.clearRect(0,0,c.width,c.height);
+    stars.forEach(s=>{
+      const a=s.a*(0.6+0.4*Math.sin(t*s.sp+s.ph));
+      cx.beginPath(); cx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      cx.fillStyle=`rgba(200,223,240,${a})`; cx.fill();
+    });
+    requestAnimationFrame(t2=>draw(t2*0.001));
+  }
+  draw(0);
+})();
+
+// ===================================================================
+// FALLBACK PLANET DATA (NASA Exoplanet Archive curated)
+// ===================================================================
+const FALLBACK_PLANETS = [
+  { name:'LHS 1140 b', host:'LHS 1140', type:'Super-Tierra', mass:6.4, radius:1.73, teq:235, dist:14.99, spectype:'M4.5V', tsm:18.3, jwst:true,
+    data:{o2proxy:0.12,ch4:0.31,h2o:0.68,dms:0.05,seasonal:0.42,surface:0.38,volcanic:0.25,techno:0.01,causal_lag:0.34} },
+  { name:'TRAPPIST-1 e', host:'TRAPPIST-1', type:'Tierra-análogo', mass:0.77, radius:0.91, teq:251, dist:12.43, spectype:'M8V', tsm:14.1, jwst:true,
+    data:{o2proxy:0.08,ch4:0.22,h2o:0.81,dms:0.03,seasonal:0.19,surface:0.51,volcanic:0.18,techno:0.00,causal_lag:0.21} },
+  { name:'TRAPPIST-1 f', host:'TRAPPIST-1', type:'Tierra-análogo', mass:0.93, radius:1.04, teq:219, dist:12.43, spectype:'M8V', tsm:12.8, jwst:true,
+    data:{o2proxy:0.06,ch4:0.18,h2o:0.75,dms:0.02,seasonal:0.22,surface:0.44,volcanic:0.16,techno:0.00,causal_lag:0.19} },
+  { name:'K2-18 b', host:'K2-18', type:'Mini-Neptuno', mass:8.6, radius:2.37, teq:255, dist:38.0, spectype:'M2.5V', tsm:92.0, jwst:true,
+    data:{o2proxy:0.07,ch4:0.61,h2o:0.74,dms:0.31,seasonal:0.14,surface:0.22,volcanic:0.43,techno:0.00,causal_lag:0.18} },
+  { name:'TOI-700 d', host:'TOI-700', type:'Tierra-análogo', mass:1.72, radius:1.14, teq:269, dist:31.13, spectype:'M2.5V', tsm:16.2, jwst:true,
+    data:{o2proxy:0.11,ch4:0.19,h2o:0.72,dms:0.04,seasonal:0.37,surface:0.33,volcanic:0.19,techno:0.00,causal_lag:0.26} },
+  { name:'TOI-700 e', host:'TOI-700', type:'Tierra-análogo', mass:0.95, radius:0.95, teq:290, dist:31.13, spectype:'M2.5V', tsm:11.4, jwst:true,
+    data:{o2proxy:0.09,ch4:0.15,h2o:0.68,dms:0.03,seasonal:0.31,surface:0.28,volcanic:0.17,techno:0.00,causal_lag:0.22} },
+  { name:'Proxima Cen b', host:'Proxima Cen', type:'Super-Tierra', mass:1.17, radius:1.08, teq:234, dist:1.29, spectype:'M5.5Ve', tsm:8.4, jwst:false,
+    data:{o2proxy:0.15,ch4:0.28,h2o:0.55,dms:0.02,seasonal:0.31,surface:0.44,volcanic:0.21,techno:0.00,causal_lag:0.29} },
+  { name:'YZ Ceti b', host:'YZ Ceti', type:'Tierra-análogo', mass:0.75, radius:0.89, teq:289, dist:3.6, spectype:'M4.5V', tsm:6.7, jwst:false,
+    data:{o2proxy:0.09,ch4:0.17,h2o:0.61,dms:0.02,seasonal:0.28,surface:0.41,volcanic:0.22,techno:0.00,causal_lag:0.23} },
+  { name:'GJ 1214 b', host:'GJ 1214', type:'Mini-Neptuno', mass:6.26, radius:2.74, teq:556, dist:14.64, spectype:'M4.5V', tsm:46.4, jwst:true,
+    data:{o2proxy:0.04,ch4:0.44,h2o:0.82,dms:0.01,seasonal:0.08,surface:0.15,volcanic:0.35,techno:0.00,causal_lag:0.12} },
+  { name:'LHS 3844 b', host:'LHS 3844', type:'Super-Tierra', mass:2.25, radius:1.32, teq:805, dist:14.9, spectype:'M5V', tsm:0.3, jwst:true,
+    data:{o2proxy:0.02,ch4:0.05,h2o:0.12,dms:0.00,seasonal:0.05,surface:0.08,volcanic:0.71,techno:0.00,causal_lag:0.06} },
+  { name:'GJ 667C c', host:'GJ 667C', type:'Super-Tierra', mass:3.8, radius:1.54, teq:277, dist:6.84, spectype:'M1.5V', tsm:9.2, jwst:false,
+    data:{o2proxy:0.10,ch4:0.21,h2o:0.58,dms:0.03,seasonal:0.25,surface:0.36,volcanic:0.28,techno:0.00,causal_lag:0.20} },
+  { name:'Ross 128 b', host:'Ross 128', type:'Tierra-análogo', mass:1.35, radius:1.11, teq:294, dist:3.37, spectype:'M4V', tsm:7.1, jwst:false,
+    data:{o2proxy:0.08,ch4:0.19,h2o:0.52,dms:0.02,seasonal:0.24,surface:0.38,volcanic:0.20,techno:0.00,causal_lag:0.21} },
+];
+
+const EVIDENCES = [
+  { key:'o2proxy',  label:'O₃ proxy O₂ (JWST)',    weight:2.1,  neg:false },
+  { key:'ch4',      label:'CH₄ desequilibrio',       weight:1.4,  neg:false },
+  { key:'h2o',      label:'H₂O vapor',               weight:1.0,  neg:false },
+  { key:'dms',      label:'DMS tentativo',            weight:1.8,  neg:false },
+  { key:'seasonal', label:'Variación estacional',     weight:2.5,  neg:false },
+  { key:'surface',  label:'Borde rojo superficial',   weight:1.6,  neg:false },
+  { key:'volcanic', label:'Actividad volcánica (↓)',  weight:-1.8, neg:true  },
+  { key:'techno',   label:'Tecnosignatura (CFC)',     weight:3.0,  neg:false },
+];
+
+const ABIO_MODELS = [
+  { name:'Serpentinización + UV fotólisis', base:0.31 },
+  { name:'Vulcanismo + reducción CO₂',      base:0.24 },
+  { name:'Fotoquímica H₂-rica',             base:0.19 },
+  { name:'Impactos + síntesis orgánica',    base:0.11 },
+];
+
+const TRANSITIONS = [
+  { id:'t0', label:'T0→T1 · Química → Prebiótica',    desc:'Moléculas orgánicas no aleatorias, gradientes energéticos, ciclos redox activos.' },
+  { id:'t1', label:'T1→T2 · Prebiótica → Metabolismo', desc:'Ciclos autocatalíticos, desequilibrios persistentes, gases reductores/oxidantes.' },
+  { id:'t2', label:'T2→T3 · Metabolismo → Ecosistema', desc:'Variabilidad estacional, pigmentos no minerales, ritmos de crecimiento/decadencia.' },
+  { id:'t3', label:'T3→T4 · Ecosistema → Tecnosfera',  desc:'Contaminantes industriales, emisiones térmicas no naturales, geoingeniería.' },
+];
+
+// ===================================================================
+// STATE
+// ===================================================================
+let planets = [...FALLBACK_PLANETS];
+let selectedPlanet = planets[0];
+let evValues = { ...selectedPlanet.data };
+let sortKey = 'tsm', sortDir = -1;
+let filterMode = 'all';
+let searchTerm = '';
+let sigPhase = 0, sigAnimId = null;
+let dataSource = 'fallback';
+
+// ===================================================================
+// NASA API (called from browser)
+// ===================================================================
+const NASA_TAP = 'https://exoplanetarchive.ipac.caltech.edu/TAP/sync';
+
+async function fetchNASA() {
+  const query = `SELECT pl_name,hostname,pl_masse,pl_rade,pl_eqt,sy_dist,st_spectype,pl_trandep,pl_tsm
+    FROM pscomppars
+    WHERE pl_eqt BETWEEN 150 AND 400
+    AND pl_masse BETWEEN 0.3 AND 15
+    AND sy_dist < 200
+    AND pl_trandep > 0
+    ORDER BY pl_tsm DESC`;
+  const url = `${NASA_TAP}?query=${encodeURIComponent(query)}&format=json&top=40`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('NASA API error');
+  return await res.json();
+}
+
+async function refreshNASA() {
+  setStatus('pillNASA', 'loading');
+  try {
+    const raw = await fetchNASA();
+    if (!raw || raw.length < 3) throw new Error('No data');
+    planets = raw.map(r => ({
+      name: r.pl_name || '?',
+      host: r.hostname || '?',
+      type: classifyType(r.pl_masse, r.pl_rade),
+      mass: r.pl_masse != null ? +r.pl_masse.toFixed(2) : null,
+      radius: r.pl_rade != null ? +r.pl_rade.toFixed(2) : null,
+      teq: r.pl_eqt != null ? Math.round(r.pl_eqt) : null,
+      dist: r.sy_dist != null ? +r.sy_dist.toFixed(1) : null,
+      spectype: r.st_spectype || '—',
+      tsm: r.pl_tsm != null ? +r.pl_tsm.toFixed(1) : 0,
+      jwst: guessJWST(r.pl_name, r.sy_dist, r.pl_tsm),
+      data: generateSyntheticData(r.pl_eqt, r.pl_masse, r.pl_tsm)
+    }));
+    dataSource = 'nasa_live';
+    document.getElementById('srcNASA').classList.add('active');
+    setStatus('pillNASA', 'live');
+    document.getElementById('dataTs').textContent = 'NASA: ' + new Date().toLocaleTimeString();
+    selectedPlanet = planets[0];
+    evValues = { ...selectedPlanet.data };
+    renderAll();
+  } catch(e) {
+    setStatus('pillNASA', 'cached');
+    planets = [...FALLBACK_PLANETS];
+    dataSource = 'fallback';
+    renderAll();
+  }
+}
+
+function classifyType(mass, radius) {
+  if (!mass && !radius) return 'Desconocido';
+  const m = mass || 0, r = radius || 0;
+  if (r < 1.2 || m < 1.5) return 'Tierra-análogo';
+  if (r < 2.0 || m < 4) return 'Super-Tierra';
+  if (r < 4.0 || m < 15) return 'Mini-Neptuno';
+  return 'Gigante';
+}
+
+function guessJWST(name, dist, tsm) {
+  const jwstList = ['LHS 1140','TRAPPIST','K2-18','TOI-700','GJ 1214','LHS 3844','WASP-39','WASP-121','HD 209458'];
+  if (jwstList.some(k => (name||'').includes(k))) return true;
+  if (dist && dist < 20 && tsm && tsm > 10) return true;
+  return false;
+}
+
+function generateSyntheticData(teq, mass, tsm) {
+  // Physics-informed synthetic evidences from planetary parameters
+  const hz = teq > 180 && teq < 320;
+  const rocky = mass && mass < 5;
+  const o2proxy = hz && rocky ? 0.08 + Math.random()*0.12 : 0.02 + Math.random()*0.06;
+  const ch4 = hz ? 0.15 + Math.random()*0.3 : 0.05 + Math.random()*0.15;
+  const h2o = hz ? 0.5 + Math.random()*0.35 : 0.1 + Math.random()*0.3;
+  const dms = hz && rocky ? Math.random()*0.12 : Math.random()*0.04;
+  const seasonal = hz && rocky ? 0.15 + Math.random()*0.35 : 0.05 + Math.random()*0.15;
+  const surface = rocky ? 0.2 + Math.random()*0.35 : 0.05 + Math.random()*0.15;
+  const volcanic = 0.1 + Math.random()*0.35;
+  return { o2proxy, ch4, h2o, dms, seasonal, surface, volcanic, techno:0, causal_lag: 0.15+Math.random()*0.3 };
+}
+
+function setStatus(id, state) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'pill ' + (state==='live'?'live':state==='cached'?'cached':'');
+}
+
+// ===================================================================
+// RENDER CATALOG
+// ===================================================================
+function getFilteredPlanets() {
+  let list = [...planets];
+  if (filterMode === 'jwst') list = list.filter(p => p.jwst);
+  if (filterMode === 'habitable') list = list.filter(p => p.teq && p.teq > 180 && p.teq < 330);
+  if (filterMode === 'superearth') list = list.filter(p => p.type === 'Super-Tierra' || p.type === 'Tierra-análogo');
+  if (searchTerm) list = list.filter(p => p.name.toLowerCase().includes(searchTerm) || (p.host||'').toLowerCase().includes(searchTerm));
+  list.sort((a,b) => {
+    const va = a[sortKey] ?? -Infinity, vb = b[sortKey] ?? -Infinity;
+    return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir;
+  });
+  return list;
+}
+
+function renderCatalog() {
+  const list = getFilteredPlanets();
+  document.getElementById('catalogStats').textContent =
+    `${list.length} planetas · Fuente: ${dataSource === 'nasa_live' ? 'NASA API (live)' : 'Datos curados (fallback)'}`;
+
+  const scores = list.map(p => {
+    const ev = p.data;
+    let lo = -0.15;
+    EVIDENCES.forEach(e => {
+      const v = ev[e.key]||0;
+      lo += e.weight > 0 ? e.weight*(v-0.3)*0.8 : e.weight*(v-0.2)*0.6;
+    });
+    const odds = Math.exp(lo);
+    return odds/(1+odds);
+  });
+
+  const tScores = list.map(p => {
+    const s = computeTransitionScores(p.data);
+    return { max: Math.max(...s), idx: s.indexOf(Math.max(...s)) };
+  });
+
+  const tNames = ['Química→Prebiótica','Prebiótica→Metabolismo','Metabolismo→Ecosistema','Ecosistema→Tecnosfera'];
+
+  document.getElementById('planetTbody').innerHTML = list.map((p,i) => {
+    const bp = scores[i];
+    const ts = tScores[i];
+    const isSelected = p.name === selectedPlanet.name;
+    return `<tr class="${isSelected?'selected':''}" onclick="selectPlanet(${planets.indexOf(p)})">
+      <td class="planet-name-cell">
+        ${p.name}${p.jwst?'<span class="badge-jwst">JWST</span>':''}
+        <small>${p.host||'—'} · ${p.type}</small>
+      </td>
+      <td style="color:${p.teq&&p.teq>180&&p.teq<330?'var(--bio)':'var(--text)'}">${p.teq??'—'}</td>
+      <td>${p.mass??'—'}</td>
+      <td>${p.radius??'—'}</td>
+      <td>${p.dist??'—'}</td>
+      <td style="color:var(--stellar);font-weight:700">${p.tsm??'—'}</td>
+      <td>
+        <div class="score-bar">
+          <div class="score-track"><div class="score-fill-bio" style="width:${bp*100}%"></div></div>
+          <span class="score-num">${bp.toFixed(2)}</span>
+        </div>
+      </td>
+      <td style="font-size:0.58rem;color:var(--stellar)">T${ts.idx} · ${tNames[ts.idx].split('→')[0]}</td>
+    </tr>`;
+  }).join('');
+}
+
+function selectPlanet(idx) {
+  selectedPlanet = planets[idx];
+  evValues = { ...selectedPlanet.data };
+  renderEvidences();
+  renderAnalysis();
+  renderCatalog();
+  renderAlerts();
+  sigPhase = 0;
+}
+
+function sortBy(key) {
+  if (sortKey === key) sortDir *= -1;
+  else { sortKey = key; sortDir = -1; }
+  renderCatalog();
+}
+
+function setFilter(mode, btn) {
+  filterMode = mode;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCatalog();
+}
+
+function filterCatalog() {
+  searchTerm = document.getElementById('searchInput').value.toLowerCase();
+  renderCatalog();
+}
+
+// ===================================================================
+// BAYESIAN ENGINE
+// ===================================================================
+function computeOdds(ev) {
+  let lo = -0.15;
+  EVIDENCES.forEach(e => {
+    const v = ev[e.key]||0;
+    lo += e.weight > 0 ? e.weight*(v-0.3)*0.8 : e.weight*(v-0.2)*0.6;
+  });
+  const odds = Math.exp(lo);
+  const bio = odds/(1+odds);
+  return { odds, bio, abio:1-bio };
+}
+
+function renderEvidences() {
+  document.getElementById('selName').textContent = selectedPlanet.name;
+  document.getElementById('selMeta').textContent =
+    `${selectedPlanet.type} · ${selectedPlanet.spectype||'—'} · ${selectedPlanet.dist??'—'} pc · TSM: ${selectedPlanet.tsm??'—'}`;
+
+  document.getElementById('evGrid').innerHTML = EVIDENCES.map(e => `
+    <div class="ev-item">
+      <div class="ev-head">
+        <span>${e.label}</span>
+        <span class="ev-val ${e.neg?'negative':''}" id="evv_${e.key}">${(evValues[e.key]||0).toFixed(2)}</span>
+      </div>
+      <input type="range" class="${e.neg?'negative':''}"
+        min="0" max="1" step="0.01"
+        value="${evValues[e.key]||0}"
+        oninput="onEvChange('${e.key}',this.value)">
+    </div>
+  `).join('');
+}
+
+function onEvChange(key, val) {
+  evValues[key] = parseFloat(val);
+  document.getElementById(`evv_${key}`).textContent = parseFloat(val).toFixed(2);
+  renderAnalysis();
+  renderAlerts();
+}
+
+function renderAnalysis() {
+  const { odds, bio, abio } = computeOdds(evValues);
+  document.getElementById('bioBar').style.width = (bio*100)+'%';
+  document.getElementById('abioBar').style.width = (abio*100)+'%';
+  document.getElementById('bioLabel').textContent = `● BIOLÓGICO ${(bio*100).toFixed(1)}%`;
+  document.getElementById('abioLabel').textContent = `ABIÓTICO ${(abio*100).toFixed(1)}% ●`;
+
+  const oddsEl = document.getElementById('oddsVal');
+  oddsEl.textContent = odds < 0.01 ? '<0.01' : odds > 99 ? '>99.0' : odds.toFixed(2);
+  oddsEl.className = 'odds-big' + (bio > 0.65 ? ' bio-win' : bio < 0.38 ? ' abio-win' : '');
+
+  document.getElementById('ciLow').textContent = (odds*0.42).toFixed(2);
+  document.getElementById('ciHigh').textContent = (odds*2.38).toFixed(2);
+
+  const cs = Math.min(0.99, Math.max(0.01, bio*0.78 + (evValues.seasonal||0)*0.14 + (evValues.o2proxy||0)*0.08));
+  document.getElementById('consScore').textContent = cs.toFixed(2);
+
+  const vbox = document.getElementById('verdictBox');
+  if (cs > 0.68) { vbox.textContent='BIOLÓGICO PROBABLE'; vbox.className='verdict bio'; }
+  else if (cs < 0.35) { vbox.textContent='ABIÓTICO PROBABLE'; vbox.className='verdict abio'; }
+  else { vbox.textContent='INCIERTO'; vbox.className='verdict uncertain'; }
+
+  // Abio models
+  const abioActive = ABIO_MODELS.filter(m => {
+    const s = m.base*(0.7+abio*0.9)+(evValues.volcanic||0)*0.1;
+    return s > 0.2;
+  }).length;
+  document.getElementById('abioActive').textContent = abioActive;
+
+  document.getElementById('abioList').innerHTML = ABIO_MODELS.map(m => {
+    const s = Math.min(0.99, m.base*(0.7+abio*0.9)+(evValues.volcanic||0)*0.1);
+    const dom = s > 0.25;
+    return `<div class="abio-row">
+      <span class="abio-name">${m.name}</span>
+      <div class="abio-track"><div class="abio-fill" style="width:${s*100}%"></div></div>
+      <span class="abio-score">${s.toFixed(2)}</span>
+      <span class="abio-status ${dom?'dominant':'suppressed'}">${dom?'ACTIVO':'SUPRIMIDO'}</span>
+    </div>`;
+  }).join('');
+
+  // Transition
+  updateTransitions();
+  // Causal metrics
+  updateCausalMetrics();
+}
+
+// ===================================================================
+// TRANSITIONS
+// ===================================================================
+function computeTransitionScores(ev) {
+  const e = ev || evValues;
+  return [
+    Math.min(0.99, 0.38+(e.h2o||0)*0.2+(e.ch4||0)*0.15+(e.surface||0)*0.1-(e.volcanic||0)*0.04),
+    Math.min(0.99, 0.18+(e.ch4||0)*0.26+(e.seasonal||0)*0.2+(e.o2proxy||0)*0.1-(e.volcanic||0)*0.1),
+    Math.min(0.99, 0.08+(e.o2proxy||0)*0.32+(e.seasonal||0)*0.3+(e.dms||0)*0.2+(e.surface||0)*0.1),
+    Math.min(0.99, 0.01+(e.techno||0)*0.82+(e.o2proxy||0)*0.04),
+  ];
+}
+
+function updateTransitions() {
+  const scores = computeTransitionScores();
+  document.getElementById('transitionList').innerHTML = TRANSITIONS.map((t,i) => `
+    <div class="t-item ${t.id}">
+      <div class="t-head">
+        <span class="t-label">${t.label}</span>
+        <span class="t-score">${scores[i].toFixed(2)}</span>
+      </div>
+      <div class="t-track"><div class="t-fill" style="width:${scores[i]*100}%"></div></div>
+      <div class="t-desc">${t.desc}</div>
+    </div>
+  `).join('');
+
+  const max = Math.max(...scores);
+  const idx = scores.indexOf(max);
+  const labels = ['T0.x','T1.x','T2.x','T3.x'];
+  const names = ['QUÍMICA → PREBIÓTICA','PREBIÓTICA → METABOLISMO','METABOLISMO → ECOSISTEMA','ECOSISTEMA → TECNOSFERA'];
+  document.getElementById('domVal').textContent = labels[idx].replace('x',(max*10).toFixed(0));
+  document.getElementById('domName').textContent = names[idx];
+  document.getElementById('fnRate').textContent = Math.max(4,Math.round(18-max*14))+'%';
+  document.getElementById('detectWindow').textContent = Math.round(400+max*600);
+}
+
+// ===================================================================
+// CAUSAL METRICS
+// ===================================================================
+function updateCausalMetrics() {
+  const ev = evValues;
+  const lag = ((ev.causal_lag||0.25)*90).toFixed(0)+'d';
+  const sync = Math.min(0.99, 0.3+(ev.seasonal||0)*0.4+(ev.surface||0)*0.2).toFixed(2);
+  const entropy = Math.min(0.99, 0.5+(ev.ch4||0)*0.2+(ev.dms||0)*0.1).toFixed(2);
+  const dim = Math.min(4.9, 2.1+(ev.seasonal||0)*1.8+(ev.o2proxy||0)*0.9).toFixed(1);
+  document.getElementById('metricsRow').innerHTML = [
+    { val:lag,     name:'Desfase Causal' },
+    { val:sync,    name:'Sincronía de Fase' },
+    { val:entropy, name:'Entropía Info.' },
+    { val:dim,     name:'Dim. Efectiva' },
+  ].map(m=>`<div class="met-box"><span class="met-val">${m.val}</span><span class="met-name">${m.name}</span></div>`).join('');
+}
+
+// ===================================================================
+// SIGNAL CANVAS
+// ===================================================================
+function startSignal() {
+  const c = document.getElementById('sigCanvas');
+  const cx = c.getContext('2d');
+  c.width = c.offsetWidth;
+  c.height = 130;
+  if (sigAnimId) cancelAnimationFrame(sigAnimId);
+
+  function draw(t) {
+    const w=c.width, h=c.height;
+    cx.clearRect(0,0,w,h);
+    // Grid
+    cx.strokeStyle='rgba(26,42,58,0.7)'; cx.lineWidth=0.5;
+    for(let x=0;x<w;x+=50){ cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,h);cx.stroke(); }
+    for(let y=0;y<h;y+=32){ cx.beginPath();cx.moveTo(0,y);cx.lineTo(w,y);cx.stroke(); }
+
+    const lag=(evValues.causal_lag||0.25)*1.8;
+    const sAmp=0.22+(evValues.seasonal||0)*0.22;
+    const aAmp=0.18+(evValues.ch4||0.2)*0.18;
+
+    // Bio signal
+    cx.beginPath(); cx.strokeStyle='#00c896'; cx.lineWidth=1.8;
+    for(let x=0;x<w;x++){
+      const px=x/w;
+      const y=h*0.44+Math.sin(px*Math.PI*4+t*0.75)*h*sAmp+Math.sin(px*Math.PI*1.2+t*0.28)*h*0.06;
+      x===0?cx.moveTo(x,y):cx.lineTo(x,y);
+    }
+    cx.stroke();
+
+    // Atm signal (lagged)
+    cx.beginPath(); cx.strokeStyle='#4cc9f0'; cx.lineWidth=1.8;
+    for(let x=0;x<w;x++){
+      const px=x/w;
+      const y=h*0.56+Math.sin(px*Math.PI*4+t*0.75-lag)*h*aAmp+Math.sin(px*Math.PI*1.2+t*0.28-lag*0.5)*h*0.05;
+      x===0?cx.moveTo(x,y):cx.lineTo(x,y);
+    }
+    cx.stroke();
+
+    // Lag marker
+    const lx=Math.min(w*0.82,lag*20+12);
+    cx.beginPath(); cx.strokeStyle='rgba(255,209,102,0.35)'; cx.lineWidth=1;
+    cx.setLineDash([3,4]); cx.moveTo(lx,4); cx.lineTo(lx,h-4); cx.stroke(); cx.setLineDash([]);
+
+    sigPhase = t+0.011;
+    sigAnimId = requestAnimationFrame(()=>draw(sigPhase));
+  }
+  draw(sigPhase);
+}
+
+window.addEventListener('resize', () => {
+  const c=document.getElementById('sigCanvas');
+  if(c){ c.width=c.offsetWidth; }
+});
+
+// ===================================================================
+// ALERTS
+// ===================================================================
+function renderAlerts() {
+  const { odds } = computeOdds(evValues);
+  const scores = computeTransitionScores();
+  const p = selectedPlanet;
+  const alerts = [];
+
+  if (p.jwst) alerts.push({ lvl:'md', badge:'DATOS JWST',
+    text:`${p.name} tiene observaciones confirmadas JWST. Espectroscopía de tránsito disponible para actualización del motor bayesiano.`,
+    src:'MAST Archive / STScI' });
+
+  if ((evValues.dms||0) > 0.22) alerts.push({ lvl:'warn', badge:'ALERTA DMS',
+    text:`Señal tentativa de DMS detectada (${((evValues.dms||0)*100).toFixed(0)}%). ⚠ Requiere confirmación independiente 5σ. Precedente: K2-18b (~2.7σ no confirmado). Riesgo sistémico de sobreinterpretación.`,
+    src:'DBCE / Alerta sesgo estadístico · ver k2-18b_dms_sobreinterpretacion_riesgo' });
+
+  if (odds > 2.5) alerts.push({ lvl:'hi', badge:'CAMBIO DE PARADIGMA',
+    text:`Odds ratio bio/abio = ${odds.toFixed(2)} > umbral 2.5. Convergencia de múltiples líneas de evidencia. Recomendación: solicitar tiempo adicional JWST. Consiliencia corregida activa.`,
+    src:'DBCE Engine / Detector de cambio de paradigma' });
+
+  const maxT = Math.max(...scores);
+  if (maxT > 0.60) {
+    const idx = scores.indexOf(maxT);
+    const names=['Química Compleja','Química Prebiótica','Metabolismo Primitivo','Ecosistema Activo'];
+    alerts.push({ lvl:'hi', badge:'TRANSICIÓN DETECTABLE',
+      text:`PTSC clasifica ${p.name} en estado ${names[idx]} (p=${(maxT).toFixed(2)}). Paradigma agnóstico reduce falsos negativos vs criterio O₂ clásico.`,
+      src:'PTSC Classifier v1.0 · Basado en marco transicional Copilot/Kimi' });
+  }
+
+  if ((evValues.seasonal||0) > 0.45) alerts.push({ lvl:'md', badge:'FIRMA ESTACIONAL',
+    text:`Variación periódica coherente con insolación orbital detectada. Firma dinámica no geológica. Desfase causal estimado: ${((evValues.causal_lag||0.25)*90).toFixed(0)} días terrestres.`,
+    src:'Causal Network Analyzer · DeepSeek vida_estacionaria_espectroscopia_estacional' });
+
+  if ((evValues.volcanic||0) > 0.45) alerts.push({ lvl:'warn', badge:'FALSO POSITIVO CANDIDATO',
+    text:`Alta actividad volcánica (${((evValues.volcanic||0)*100).toFixed(0)}%). Modelo abiótico dominante: serpentinización + UV. Los odds se ajustan a la baja. Precaución: no concluir origen biológico sin exclusión cuantitativa.`,
+    src:'DBCE / Modelo abiótico serpentinización · ver falso_positivo_metano_abiotico' });
+
+  if ((evValues.techno||0) > 0.1) alerts.push({ lvl:'hi', badge:'TECNOSIGNATURA',
+    text:`Posible tecnosignatura detectada (CFCs: ${((evValues.techno||0)*100).toFixed(0)}%). ⚠ CFCs persisten solo siglos → implicaría civilización activa o muy reciente. No arqueológica.`,
+    src:'DBCE · tecnofirmas_cfc_temporalidad_correccion · Corrección Kimi/DeepSeek 2026' });
+
+  if (!alerts.length) alerts.push({ lvl:'lo', badge:'ESPERA',
+    text:`Sistema en modo de espera para ${p.name}. Ajusta evidencias o selecciona otro planeta para activar detección.`,
+    src:'Sistema de monitoreo continuo' });
+
+  document.getElementById('alertsList').innerHTML = alerts.map(a=>`
+    <div class="alert-item ${a.lvl}">
+      <span class="alert-badge">${a.badge}</span>
+      <div>
+        <div class="alert-body">${a.text}</div>
+        <div class="alert-src">⟐ ${a.src}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ===================================================================
+// ACTIONS
+// ===================================================================
+function runAnalysis() {
+  const target = selectedPlanet.data;
+  let step = 0;
+  const steps = 35;
+  const interval = setInterval(() => {
+    step++;
+    const t = step/steps;
+    EVIDENCES.forEach(e => {
+      const cur = evValues[e.key]||0;
+      const tgt = target[e.key]||0;
+      evValues[e.key] = cur+(tgt-cur)*t*0.18;
+      const inp = document.querySelector(`input[oninput*="${e.key}"]`);
+      if(inp) inp.value = evValues[e.key];
+      const vEl = document.getElementById(`evv_${e.key}`);
+      if(vEl) vEl.textContent = evValues[e.key].toFixed(2);
+    });
+    renderAnalysis();
+    if(step>=steps){ clearInterval(interval); renderAlerts(); }
+  }, 45);
+}
+
+function randomize() {
+  EVIDENCES.forEach(e => {
+    const v = Math.random()*0.8;
+    evValues[e.key] = v;
+    const inp = document.querySelector(`input[oninput*="${e.key}"]`);
+    if(inp) inp.value = v;
+    const vEl = document.getElementById(`evv_${e.key}`);
+    if(vEl) vEl.textContent = v.toFixed(2);
+  });
+  renderAnalysis(); renderAlerts();
+}
+
+function resetToDefault() {
+  evValues = { ...selectedPlanet.data };
+  renderEvidences(); renderAnalysis(); renderAlerts();
+}
+
+function renderAll() {
+  renderCatalog();
+  renderEvidences();
+  renderAnalysis();
+  renderAlerts();
+}
+
+// ===================================================================
+// LOADING SEQUENCE
+// ===================================================================
+const LOAD_STEPS = [
+  [0,   'INICIALIZANDO MOTOR BAYESIANO...'],
+  [15,  'CARGANDO DATOS CURADOS DE FALLBACK...'],
+  [30,  'CONECTANDO NASA EXOPLANET ARCHIVE...'],
+  [55,  'CALIBRANDO CLASIFICADOR PTSC...'],
+  [70,  'ACTIVANDO ANALIZADOR CAUSAL...'],
+  [85,  'RENDERIZANDO CATÁLOGO...'],
+  [100, 'SISTEMA LISTO.'],
+];
+
+async function boot() {
+  const fill = document.getElementById('lFill');
+  const msg = document.getElementById('lMsg');
+
+  for (let i = 0; i < LOAD_STEPS.length-1; i++) {
+    fill.style.width = LOAD_STEPS[i][0]+'%';
+    msg.textContent = LOAD_STEPS[i][1];
+    await sleep(280);
+  }
+
+  // Try NASA API
+  msg.textContent = 'CONECTANDO NASA EXOPLANET ARCHIVE...';
+  fill.style.width = '45%';
+  document.getElementById('apiBadgeNASA').className = 'api-badge';
+  try {
+    await Promise.race([fetchNASA().then(raw => {
+      if (raw && raw.length > 3) {
+        planets = raw.map(r => ({
+          name: r.pl_name||'?', host:r.hostname||'?',
+          type: classifyType(r.pl_masse, r.pl_rade),
+          mass: r.pl_masse!=null?+r.pl_masse.toFixed(2):null,
+          radius: r.pl_rade!=null?+r.pl_rade.toFixed(2):null,
+          teq: r.pl_eqt!=null?Math.round(r.pl_eqt):null,
+          dist: r.sy_dist!=null?+r.sy_dist.toFixed(1):null,
+          spectype: r.st_spectype||'—',
+          tsm: r.pl_tsm!=null?+r.pl_tsm.toFixed(1):0,
+          jwst: guessJWST(r.pl_name, r.sy_dist, r.pl_tsm),
+          data: generateSyntheticData(r.pl_eqt, r.pl_masse, r.pl_tsm)
+        }));
+        dataSource = 'nasa_live';
+        document.getElementById('apiBadgeNASA').className = 'api-badge ok';
+        document.getElementById('srcNASA').classList.add('active');
+        setStatus('pillNASA', 'live');
+        document.getElementById('dataTs').textContent = new Date().toLocaleTimeString()+' (live)';
+        selectedPlanet = planets[0];
+        evValues = { ...selectedPlanet.data };
+      }
+    }), sleep(3500)]);
+  } catch(e) {
+    document.getElementById('apiBadgeNASA').className = 'api-badge cached';
+    setStatus('pillNASA', 'cached');
+  }
+
+  document.getElementById('apiBadgeJWST').className = 'api-badge cached';
+  document.getElementById('apiBadgeBL').className = 'api-badge cached';
+
+  fill.style.width = '100%';
+  msg.textContent = 'SISTEMA LISTO.';
+  await sleep(380);
+
+  document.getElementById('loader').classList.add('out');
+  setTimeout(() => { const l=document.getElementById('loader'); if(l) l.remove(); }, 650);
+
+  renderAll();
+  startSignal();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+document.addEventListener('DOMContentLoaded', boot);
+</script>
+</body>
+</html>

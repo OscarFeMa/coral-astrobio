@@ -1,0 +1,9 @@
+﻿flask
+supabase
+numpy
+pandas
+scipy
+matplotlib
+reportlab
+requests
+python-dotenv
