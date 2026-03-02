@@ -16,7 +16,8 @@ import tempfile
 import numpy as np
 from flask import Flask, jsonify, request, send_file
 
-from data.planets import PLANETS, EVIDENCE_DEFINITIONS, ABIO_MODELS
+from data import planets as _planets_module
+from data.planets import EVIDENCE_DEFINITIONS, ABIO_MODELS
 from core.bayesian_engine import compute_bayesian_odds, rank_planets, sensitivity_analysis, most_informative_evidence
 from core.transition_classifier import classify_transitions, TRANSITION_DEFINITIONS
 from core.causal_analyzer import generate_synthetic_timeseries, analyze_causal_structure
@@ -41,8 +42,12 @@ def add_cors(response):
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return response
 
+def get_planets_list():
+    """Siempre devuelve la lista actual (se actualiza tras carga NASA)."""
+    return _planets_module.PLANETS
+
 def find_planet(name):
-    return next((p for p in PLANETS if name.lower() in p["name"].lower()), None)
+    return next((p for p in get_planets_list() if name.lower() in p["name"].lower()), None)
 
 def safe_float(v):
     try: return round(float(v), 4)
@@ -118,11 +123,11 @@ def planet_full_analysis(planet, custom_evidences=None):
 
 @app.route("/api/status")
 def status():
-    return jsonify({"status": "online", "version": "3.0", "planet_count": len(PLANETS), "engines": ["DBCE", "PTSC", "CNA"], "data_source": "NASA Exoplanet Archive (curated)"})
+    return jsonify({"status": "online", "version": "3.0", "planet_count": len(get_planets_list()), "engines": ["DBCE", "PTSC", "CNA"], "data_source": "NASA Exoplanet Archive (curated)"})
 
 @app.route("/api/planets")
 def get_planets():
-    ranked = rank_planets(PLANETS)
+    ranked = rank_planets(get_planets_list())
     result = []
     for planet, bayes in ranked:
         transition = classify_transitions(planet["evidences"], planet["name"])
@@ -165,7 +170,7 @@ def analyze_custom():
 
 @app.route("/api/rank")
 def get_rank():
-    ranked = rank_planets(PLANETS)
+    ranked = rank_planets(get_planets_list())
     return jsonify({"ranking": [{"rank": i+1, "name": p["name"], "bio_probability": safe_float(r.bio_probability), "odds_ratio": safe_float(r.odds_ratio), "verdict": str(r.verdict), "consilience": safe_float(r.consilience_score)} for i, (p, r) in enumerate(ranked)]})
 
 @app.route("/api/sensitivity/<path:name>")
@@ -187,7 +192,7 @@ def compare_planets():
     names_raw = request.args.get("names", "")
     names = [n.strip() for n in names_raw.split(",") if n.strip()]
     if not names:
-        names = [p["name"] for p in sorted(PLANETS, key=lambda p: p.get("tsm", 0), reverse=True)[:6]]
+        names = [p["name"] for p in sorted(get_planets_list(), key=lambda p: p.get("tsm", 0), reverse=True)[:6]]
     results = []
     for name in names:
         planet = find_planet(name)
@@ -268,38 +273,6 @@ def memory_save_coral():
     mem = get_memory()
     if not mem: return jsonify({"status": "offline"}), 503
     return jsonify(mem.save_coral_note(title=data.get("title", "Nota Coral"), content=data["content"], subtema=data.get("subtema", "general")))
-
-@app.route("/api/debug/refresh-cache")
-def refresh_cache():
-    import data.planets as dp
-    cache = dp.CACHE_FILE
-    import os
-    if os.path.exists(cache): os.remove(cache)
-    dp.PLANETS = dp._build_planet_list()
-    return jsonify({"status": "ok", "count": len(dp.PLANETS)})
-
-@app.route("/api/admin/reload-planets")
-def reload_planets():
-    import data.planets as dp, os
-    if os.path.exists(dp.CACHE_FILE): os.remove(dp.CACHE_FILE)
-    dp.PLANETS[:] = dp._build_planet_list()
-    import api as self_api
-    self_api.PLANETS = dp.PLANETS
-    return jsonify({"status": "ok", "count": len(dp.PLANETS)})
-
-
-@app.route("/api/debug/nasa-test")
-def nasa_test():
-    import urllib.request, urllib.parse, ssl, time
-    url = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=SELECT+COUNT(*)+FROM+pscomppars&format=json"
-    try:
-        t0 = time.time()
-        ctx = ssl.create_default_context()
-        with urllib.request.urlopen(url, context=ctx, timeout=15) as r:
-            data = r.read().decode()
-        return jsonify({"ok": True, "ms": round((time.time()-t0)*1000), "data": data})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
 
 @app.route("/api/debug/routes")
 def debug_routes():
