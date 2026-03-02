@@ -288,6 +288,19 @@ def reload_planets():
     return jsonify({"status": "ok", "count": len(dp.PLANETS)})
 
 
+@app.route("/api/debug/nasa-test")
+def nasa_test():
+    import urllib.request, urllib.parse, ssl, time
+    url = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=SELECT+COUNT(*)+FROM+pscomppars&format=json"
+    try:
+        t0 = time.time()
+        ctx = ssl.create_default_context()
+        with urllib.request.urlopen(url, context=ctx, timeout=15) as r:
+            data = r.read().decode()
+        return jsonify({"ok": True, "ms": round((time.time()-t0)*1000), "data": data})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
 @app.route("/api/debug/routes")
 def debug_routes():
     return jsonify({"routes": sorted([str(r) for r in app.url_map.iter_rules()]), "count": len(list(app.url_map.iter_rules()))})
