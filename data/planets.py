@@ -42,6 +42,7 @@ WHERE pl_rade IS NOT NULL
   AND pl_eqt <= 2000
   AND sy_dist <= 200
 ORDER BY pl_tsm DESC NULLS LAST
+LIMIT 500
 """.strip()
 
 
