@@ -185,7 +185,6 @@ class CoralMemory:
             confidence=float(b.get("consilience_score", 0.5)),
             tema=TEMA_ASTROBIO,
             subtema="exoplaneta",
-            path=self._path("astrobio", safe, "analisis"),
             embedding=self._embed(summary),
         )
         root_r = self._insert(root)
@@ -205,7 +204,6 @@ class CoralMemory:
                 entry_type=ENTRY_TYPES["fact"],
                 confidence=float(b.get("consilience_score", 0.5)),
                 subtema="bayesiano",
-                path=self._path("astrobio", safe, "bayesiano"),
             ),
             dict(
                 field_key=self._key("astrobio", safe, "ptsc"),
@@ -219,7 +217,6 @@ class CoralMemory:
                 entry_type=ENTRY_TYPES["fact"],
                 confidence=float(t.get("dominant_score", 0.5)),
                 subtema="transicion",
-                path=self._path("astrobio", safe, "ptsc"),
             ),
             dict(
                 field_key=self._key("astrobio", safe, "causal"),
@@ -233,7 +230,6 @@ class CoralMemory:
                 entry_type=ENTRY_TYPES["fact"],
                 confidence=float(c.get("non_geological", 0.3)),
                 subtema="causal",
-                path=self._path("astrobio", safe, "causal"),
             ),
         ]
 
@@ -277,7 +273,6 @@ class CoralMemory:
             confidence=confidence,
             tema=TEMA_CORAL,
             subtema=subtema,
-            path=self._path("coral", subtema, safe),
             embedding=embedding,
         )
         r = self._insert(rec)
@@ -298,7 +293,7 @@ class CoralMemory:
             return []
         try:
             q = (self.client.table(TABLE)
-                 .select("id,field_key,field_value,entry_type,ia_author,confidence_score,tema,subtema,path,created_at,is_superseded")
+                 .select("id,field_key,field_value,entry_type,ia_author,confidence_score,tema,subtema,created_at,is_superseded")
                  .eq("tema", tema)
                  .eq("is_superseded", include_superseded if include_superseded else False))
             if subtema:
@@ -412,7 +407,6 @@ class CoralMemory:
         confidence: float,
         tema: str,
         subtema: str,
-        path: str,
         embedding: Optional[List[float]] = None,
         parent_id: Optional[str] = None,
     ) -> Dict:
@@ -426,7 +420,6 @@ class CoralMemory:
             "is_superseded":   False,
             "tema":            tema,
             "subtema":         subtema,
-            "path":            path[:500],
             "created_at":      datetime.now(timezone.utc).isoformat(),
         }
         if embedding:
