@@ -42,7 +42,6 @@ WHERE pl_rade IS NOT NULL
   AND pl_eqt <= 2000
   AND sy_dist <= 200
 ORDER BY pl_tsm DESC NULLS LAST
-LIMIT 500
 """.strip()
 
 
@@ -361,12 +360,22 @@ def _build_planet_list() -> List[Dict]:
     return combined
 
 
-# Carga lazy — se ejecuta una vez al importar el módulo
-try:
-    PLANETS = _build_planet_list()
-except Exception as e:
-    print(f"[planets] Error cargando catálogo: {e} — usando respaldo")
-    PLANETS = PLANETS_CURATED
+# Carga: arranca con curados, descarga NASA en background
+import threading
+
+PLANETS = list(PLANETS_CURATED)  # inmediato, sin esperar a NASA
+
+def _background_load():
+    global PLANETS
+    try:
+        nasa = _build_planet_list()
+        if nasa and len(nasa) > len(PLANETS_CURATED):
+            PLANETS[:] = nasa
+            print(f"[planets] Background update: {len(PLANETS)} planetas")
+    except Exception as e:
+        print(f"[planets] Background error: {e}")
+
+threading.Thread(target=_background_load, daemon=True).start()
 
 
 # ── Definiciones estáticas ───────────────────────────────────────
