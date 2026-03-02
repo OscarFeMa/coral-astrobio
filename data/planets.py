@@ -28,7 +28,7 @@ CACHE_MAX_AGE_HOURS = 24
 NASA_TAP = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
 
 NASA_QUERY = """
-SELECT pl_name, hostname, pl_rade, pl_bmasse, pl_eqt, 
+SELECT TOP 500 pl_name, hostname, pl_rade, pl_bmasse, pl_eqt, 
        sy_dist, st_spectype, pl_orbper, pl_tsm,
        disc_facility
 FROM pscomppars
