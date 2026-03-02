@@ -269,6 +269,25 @@ def memory_save_coral():
     if not mem: return jsonify({"status": "offline"}), 503
     return jsonify(mem.save_coral_note(title=data.get("title", "Nota Coral"), content=data["content"], subtema=data.get("subtema", "general")))
 
+@app.route("/api/debug/refresh-cache")
+def refresh_cache():
+    import data.planets as dp
+    cache = dp.CACHE_FILE
+    import os
+    if os.path.exists(cache): os.remove(cache)
+    dp.PLANETS = dp._build_planet_list()
+    return jsonify({"status": "ok", "count": len(dp.PLANETS)})
+
+@app.route("/api/admin/reload-planets")
+def reload_planets():
+    import data.planets as dp, os
+    if os.path.exists(dp.CACHE_FILE): os.remove(dp.CACHE_FILE)
+    dp.PLANETS[:] = dp._build_planet_list()
+    import api as self_api
+    self_api.PLANETS = dp.PLANETS
+    return jsonify({"status": "ok", "count": len(dp.PLANETS)})
+
+
 @app.route("/api/debug/routes")
 def debug_routes():
     return jsonify({"routes": sorted([str(r) for r in app.url_map.iter_rules()]), "count": len(list(app.url_map.iter_rules()))})
