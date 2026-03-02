@@ -55,7 +55,7 @@ def _fetch_nasa() -> List[Dict]:
     ctx = ssl.create_default_context()
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "CoralAstrobio/3.0"})
-        with urllib.request.urlopen(req, context=ctx, timeout=30) as r:
+        with urllib.request.urlopen(req, context=ctx, timeout=60) as r:
             return json.loads(r.read().decode())
     except Exception as e:
         print(f"[NASA TAP] Error: {e}")
@@ -363,7 +363,7 @@ def _build_planet_list() -> List[Dict]:
 # Carga: arranca con curados, descarga NASA en background
 import threading
 
-PLANETS = list(PLANETS_CURATED)  # inmediato, sin esperar a NASA
+PLANETS = list(PLANETS_CURATED)
 
 def _background_load():
     global PLANETS
