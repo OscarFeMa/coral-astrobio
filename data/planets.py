@@ -58,7 +58,7 @@ def _fetch_nasa() -> List[Dict]:
         with urllib.request.urlopen(req, context=ctx, timeout=60) as r:
             return json.loads(r.read().decode())
     except Exception as e:
-        print(f"[NASA TAP] Error: {e}")
+        import traceback; print(f"[NASA TAP] Error: {e}"); print(traceback.format_exc())
         return []
 
 
