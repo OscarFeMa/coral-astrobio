@@ -406,3 +406,4 @@ if __name__ == "__main__":
     print(f"Top 5 por TSM:")
     for p in sorted(PLANETS, key=lambda x: x.get('tsm') or 0, reverse=True)[:5]:
         print(f"  {p['name']} TSM={p['tsm']} hz={p['hz']}")
+
