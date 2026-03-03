@@ -1,10 +1,3 @@
-@app.route("/api/debug/nasa-url")
-def nasa_url():
-    import urllib.parse
-    import data.planets as dp
-    params = urllib.parse.urlencode({"query": dp.NASA_QUERY, "format": "json"})
-    url = f"{dp.NASA_TAP}?{params}"
-    return jsonify({"url": url, "query": dp.NASA_QUERY})
 
 """
 CORAL ASTROBIO v3.0 — API REST
@@ -295,9 +288,18 @@ def admin_reload():
 def debug_routes():
     return jsonify({"routes": sorted([str(r) for r in app.url_map.iter_rules()]), "count": len(list(app.url_map.iter_rules()))})
 
+@app.route("/api/debug/nasa-url")
+def nasa_url():
+    import urllib.parse
+    import data.planets as dp
+    params = urllib.parse.urlencode({"query": dp.NASA_QUERY, "format": "json"})
+    url = f"{dp.NASA_TAP}?{params}"
+    return jsonify({"url": url, "query": dp.NASA_QUERY})
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5050))
     print(f"\n  CORAL ASTROBIO — API Server v3.0")
     print(f"  http://localhost:{port}\n")
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
