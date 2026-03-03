@@ -27,22 +27,7 @@ CACHE_MAX_AGE_HOURS = 24
 # ── NASA TAP Query ───────────────────────────────────────────────
 NASA_TAP = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
 
-NASA_QUERY = """
-SELECT TOP 500 pl_name, hostname, pl_rade, pl_bmasse, pl_eqt, 
-       sy_dist, st_spectype, pl_orbper, pl_tsm,
-       disc_facility
-FROM pscomppars
-WHERE pl_rade IS NOT NULL
-  AND pl_bmasse IS NOT NULL
-  AND pl_eqt IS NOT NULL
-  AND sy_dist IS NOT NULL
-  AND pl_rade >= 0.5
-  AND pl_rade <= 4.0
-  AND pl_eqt >= 150
-  AND pl_eqt <= 2000
-  AND sy_dist <= 200
-ORDER BY pl_tsm DESC NULLS LAST
-""".strip()
+NASA_QUERY = "SELECT TOP 500 pl_name,hostname,pl_rade,pl_bmasse,pl_eqt,sy_dist,st_spectype,pl_orbper,pl_tsm,disc_facility FROM pscomppars WHERE pl_rade IS NOT NULL AND pl_bmasse IS NOT NULL AND pl_eqt IS NOT NULL AND sy_dist IS NOT NULL AND pl_rade>=0.5 AND pl_rade<=4.0 AND pl_eqt>=150 AND pl_eqt<=2000 AND sy_dist<=200 ORDER BY pl_tsm DESC"
 
 
 def _fetch_nasa() -> List[Dict]:
@@ -406,4 +391,5 @@ if __name__ == "__main__":
     print(f"Top 5 por TSM:")
     for p in sorted(PLANETS, key=lambda x: x.get('tsm') or 0, reverse=True)[:5]:
         print(f"  {p['name']} TSM={p['tsm']} hz={p['hz']}")
+
 
