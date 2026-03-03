@@ -42,6 +42,11 @@ def _fetch_nasa() -> List[Dict]:
         req = urllib.request.Request(url, headers={"User-Agent": "CoralAstrobio/3.0"})
         with urllib.request.urlopen(req, context=ctx, timeout=60) as r:
             return json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        print(f"[NASA TAP] Error: {e}")
+        print(f"[NASA TAP] Body: {body}")
+        return []
     except Exception as e:
         import traceback; print(f"[NASA TAP] Error: {e}"); print(traceback.format_exc())
         return []
